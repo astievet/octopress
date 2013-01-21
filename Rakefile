@@ -5,8 +5,6 @@ require "bundler/setup"
 require "stringex"
 require 'time'
 require 'tzinfo'
-require 'rake/minify'
-require 'time'
 require 'yaml'
 require 'octopress'
 
@@ -22,17 +20,18 @@ configuration = Octopress::Configuration.read_configuration
 
 desc "Initial setup for Octopress: copies the default theme into the path of Jekyll's generator. Rake install defaults to rake install[classic] to install a different theme run rake install[some_theme_name]"
 task :install, :theme do |t, args|
-  if File.directory?(configuration[:source]) || File.directory?("sass")
+  if File.directory?(configuration[:source]) || File.directory?(configuration[:assets])
     abort("rake aborted!") if ask("A theme is already installed, proceeding will overwrite existing files. Are you sure?", ['y', 'n']) == 'n'
   end
   # copy theme into working Jekyll directories
   theme = args.theme || 'classic'
-  puts "## Copying "+theme+" theme into ./#{configuration[:source]} and ./sass"
-  mkdir_p configuration[:source]
-  cp_r "#{configuration[:themes_dir]}/#{theme}/source/.", configuration[:source]
-  mkdir_p "sass"
-  cp_r "#{configuration[:themes_dir]}/#{theme}/sass/.", "sass"
+  puts "## Copying "+theme+" theme into ./#{configuration[:source]} and ./#{configuration[:assets]}"
   mkdir_p "#{configuration[:source]}/#{configuration[:posts_dir]}"
+  cp_r "#{configuration[:themes_dir]}/#{theme}/source/.", configuration[:source]
+  mkdir_p "#{configuration[:assets]}/stylesheets"
+  mkdir_p "#{configuration[:assets]}/javascripts"
+  cp_r "#{configuration[:themes_dir]}/#{theme}/sass/.", "#{configuration[:assets]}/stylesheets"
+  cp_r "#{configuration[:themes_dir]}/#{theme}/javascripts/.", "#{configuration[:assets]}/javascripts"
   mkdir_p configuration[:destination]
 end
 
@@ -41,36 +40,16 @@ end
 #######################
 
 desc "Generate jekyll site"
-task :generate, :no_future do |t, args|
-  future = args.no_future
-  raise "### You haven't set anything up yet. First run `rake install` to set up an Octopress theme." unless File.directory?(configuration[:source])
+task :generate, :dev do |t, args|
+  dev = args.dev
+  raise "### You haven't set anything up yet. First run `rake install` to set up an Octopress theme." unless File.directory?(source_dir)
   Octopress::Configuration.write_configs_for_generation
   puts "## Generating Site with Jekyll"
   system "compass compile --css-dir #{configuration[:source]}/stylesheets"
-  Rake::Task['minify_and_combine'].execute
-  system "jekyll --no-server --no-auto #{'--no-future' if future.nil?}"
-  unpublished = get_unpublished(Dir.glob("#{configuration[:source]}/#{configuration[:posts_dir]}/*.*"), {no_future: future.nil?, message: "\nThese posts were not generated:"})
+  system "jekyll --no-server --no-auto #{'--no-future' if dev.nil?}"
+  unpublished = get_unpublished(Dir.glob("#{source_dir}/#{posts_dir}/*.*"), {production: dev.nil?, message: "\nThese posts were not generated:"})
   puts unpublished unless unpublished.empty?
   Octopress::Configuration.remove_configs_for_generation
-end
-
-Rake::Minify.new(:minify_and_combine) do
-  files = FileList.new("#{configuration[:source]}/javascripts/group/*.*")
-
-  output_file =  "#{configuration[:source]}/javascripts/octopress.min.js"
-
-  puts "BEGIN Minifying #{output_file}"
-  group(output_file) do
-    files.each do |filename|
-      puts "Minifying- #{filename} into #{output_file}"
-      if filename.include? '.min.js'
-        add(filename, :minify => false)
-      else
-        add(filename)
-      end
-    end
-  end
-  puts "END Minifying #{output_file}"
 end
 
 # usage rake generate_only[my-post]
@@ -89,14 +68,14 @@ task :generate_only, :filename do |t, args|
 end
 
 desc "Watch the site and regenerate when it changes"
-task :watch, :show_future do |t, args|
-  future = args.show_future
-  raise "### You haven't set anything up yet. First run `rake install` to set up an Octopress theme." unless File.directory?(configuration[:source])
+task :watch, :dev do |t, args|
+  dev = args.dev
+  raise "### You haven't set anything up yet. First run `rake install` to set up an Octopress theme." unless File.directory?(source_dir)
   Octopress::Configuration.write_configs_for_generation
   puts "Starting to watch source with Jekyll and Compass."
   system "compass compile --css-dir #{configuration[:source]}/stylesheets"
   Rake::Task['minify_and_combine'].execute
-  jekyllPid = Process.spawn("jekyll --auto #{'--no-future' if future.nil?}")
+  jekyllPid = Process.spawn("jekyll --auto #{'--no-future' if dev.nil?}")
   compassPid = Process.spawn("compass watch")
   trap("INT") {
     [jekyllPid, compassPid].each { |pid| Process.kill(9, pid) rescue Errno::ESRCH }
@@ -107,13 +86,13 @@ task :watch, :show_future do |t, args|
 end
 
 desc "preview the site in a web browser."
-task :preview, :show_future do |t, args|
-  future = args.show_future
-  raise "### You haven't set anything up yet. First run `rake install` to set up an Octopress theme." unless File.directory?(configuration[:source])
+task :preview, :dev do |t, args|
+  dev = args.dev
+  raise "### You haven't set anything up yet. First run `rake install` to set up an Octopress theme." unless File.directory?(source_dir)
   Octopress::Configuration.write_configs_for_generation
   puts "Starting to watch source with Jekyll and Compass. Starting Rack, serving to http://#{configuration[:server_host]}:#{configuration[:server_port]}"
   system "compass compile --css-dir #{configuration[:source]}/stylesheets"
-  jekyllPid = Process.spawn("jekyll --auto #{'--no-future' if future.nil?}")
+  jekyllPid = Process.spawn("jekyll --auto #{'--no-future' if dev.nil?}")
   compassPid = Process.spawn("compass watch")
   rackupPid = Process.spawn("rackup --host #{configuration[:server_host]} --port #{configuration[:server_port]}")
 
@@ -229,18 +208,20 @@ task :update, :theme do |t, args|
   Rake::Task[:update_style].invoke(theme)
 end
 
-desc "Move sass to sass.old, install sass theme updates, replace sass/custom with sass.old/custom"
+desc "Move stylesheets to stylesheets.old, install stylesheets theme updates, replace stylesheets/custom with stylesheets.old/custom"
 task :update_style, :theme do |t, args|
   theme = args.theme || 'classic'
-  if File.directory?("sass.old")
-    puts "removed existing sass.old directory"
-    rm_r "sass.old", :secure=>true
+  if File.directory?("#{configuration[:assets]}.old")
+    rm_r "#{configuration[:assets]}.old/stylesheets", :secure=>true
+    puts "removed existing assets.old/stylesheets directory"
   end
-  mv "sass", "sass.old"
-  puts "## Moved styles into sass.old/"
-  cp_r "#{configuration[:themes_dir]}/"+theme+"/sass/", "sass"
-  cp_r "sass.old/custom/.", "sass/custom"
-  puts "## Updated Sass ##"
+  mkdir "#{configuration[:assets]}.old" 
+  sass_dir = "#{configuration[:assets]}.old/stylesheets"
+  mv "#{configuration[:assets]}/stylesheets", "#{configuration[:assets]}.old/stylesheets"
+  puts "## Moved styles into #{configuration[:assets]}.old/stylesheets"
+  cp_r "#{configuration[:themes_dir]}/#{theme}/sass/", "#{configuration[:assets]}/stylesheets"
+  cp_r "#{configuration[:assets]}.old/stylesheets/custom", "#{configuration[:assets]}/stylesheets/custom"
+  puts "## Updated Stylesheets ##"
   rm_r ".sass-cache", :secure=>true if File.directory?(".sass-cache")
 end
 
@@ -466,7 +447,7 @@ def get_unpublished(posts, options={})
     file = File.read(post)
     data = YAML.load file.match(/(^-{3}\n)(.+?)(\n-{3})/m)[2]
     
-    if options[:no_future]
+    if options[:production]
       future = Time.now < Time.parse(data['date'].to_s) ? "future date: #{data['date']}" : false
     end
     draft = data['published'] == false ? 'published: false' : false

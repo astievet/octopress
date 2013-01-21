@@ -7,6 +7,7 @@
 root:         /
 permalink:    /:year/:month/:day/:title/
 source:       source          # source file directory
+assets:       assets          # remote assets directory
 destination:  public          # compiled site directory
 plugins:      plugins
 code_dir:     downloads/code
@@ -24,3 +25,4 @@ new_post_ext:   markdown      # default new post file extension when using the n
 new_page_ext:   markdown      # default new page file extension when using the new_page task
 server_host:    0.0.0.0       # host ip address for preview server
 server_port:    4000          # port for preview server eg. localhost:4000
+timezone:       local         # default time and date used to local timezone. Timezones (under TZ column): http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
