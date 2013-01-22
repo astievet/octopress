@@ -26,13 +26,33 @@ task :install, :theme do |t, args|
   # copy theme into working Jekyll directories
   theme = args.theme || 'classic'
   puts "## Copying "+theme+" theme into ./#{configuration[:source]} and ./#{configuration[:assets]}"
+  install_template(configuration, theme)
+  install_assets(configuration, theme)
+  mkdir_p configuration[:destination]
+end
+
+def install_assets (configuration, theme)
+  install_stylesheets(configuration, theme)
+  install_javascript(configuration, theme)
+end
+
+def install_stylesheets (configuration, theme)
+  mkdir_p "#{configuration[:assets]}/stylesheets"
+  if File.directory? "#{configuration[:themes_dir]}/#{theme}/sass"
+    cp_r "#{configuration[:themes_dir]}/#{theme}/sass/.", "#{configuration[:assets]}/stylesheets"
+  elsif File.directory? "#{configuration[:themes_dir]}/#{theme}/stylesheets" 
+    cp_r "#{configuration[:themes_dir]}/#{theme}/stylesheets/.", "#{configuration[:assets]}/stylesheets"
+  end
+end
+
+def install_javascript (configuration, theme)
+  mkdir_p "#{configuration[:assets]}/javascripts"
+  cp_r "#{configuration[:themes_dir]}/#{theme}/javascripts/.", "#{configuration[:assets]}/javascripts", :remove_destination=>true
+end
+
+def install_template (configuration, theme)
   mkdir_p "#{configuration[:source]}/#{configuration[:posts_dir]}"
   cp_r "#{configuration[:themes_dir]}/#{theme}/source/.", configuration[:source]
-  mkdir_p "#{configuration[:assets]}/stylesheets"
-  mkdir_p "#{configuration[:assets]}/javascripts"
-  cp_r "#{configuration[:themes_dir]}/#{theme}/sass/.", "#{configuration[:assets]}/stylesheets"
-  cp_r "#{configuration[:themes_dir]}/#{theme}/javascripts/.", "#{configuration[:assets]}/javascripts"
-  mkdir_p configuration[:destination]
 end
 
 #######################
@@ -204,43 +224,59 @@ end
 desc "Update theme source and style"
 task :update, :theme do |t, args|
   theme = args.theme || 'classic'
-  Rake::Task[:update_source].invoke(theme)
-  Rake::Task[:update_style].invoke(theme)
+  Rake::Task[:update_template].invoke(theme)
+  Rake::Task[:update_stylesheets].invoke(theme)
+  Rake::Task[:update_javascripts].invoke(theme)
 end
 
 desc "Move stylesheets to stylesheets.old, install stylesheets theme updates, replace stylesheets/custom with stylesheets.old/custom"
-task :update_style, :theme do |t, args|
+task :update_stylesheets, :theme do |t, args|
   theme = args.theme || 'classic'
-  if File.directory?("#{configuration[:assets]}.old")
+  if File.directory?("#{configuration[:assets]}.old/stylesheets")
     rm_r "#{configuration[:assets]}.old/stylesheets", :secure=>true
-    puts "removed existing assets.old/stylesheets directory"
+    puts "Removed existing assets.old/stylesheets directory"
   end
   mkdir "#{configuration[:assets]}.old" 
-  sass_dir = "#{configuration[:assets]}.old/stylesheets"
   mv "#{configuration[:assets]}/stylesheets", "#{configuration[:assets]}.old/stylesheets"
-  puts "## Moved styles into #{configuration[:assets]}.old/stylesheets"
-  cp_r "#{configuration[:themes_dir]}/#{theme}/sass/", "#{configuration[:assets]}/stylesheets"
+  puts "Moved styles into #{configuration[:assets]}.old/stylesheets"
+  install_stylesheets(theme)
   cp_r "#{configuration[:assets]}.old/stylesheets/custom", "#{configuration[:assets]}/stylesheets/custom"
   puts "## Updated Stylesheets ##"
   rm_r ".sass-cache", :secure=>true if File.directory?(".sass-cache")
 end
 
+desc "Move javascripts to #{configuration[:assets]}.old/javascripts, install javascripts theme updates."
+task :update_javascripts, :theme do |t, args|
+  if File.directory?("#{configuration[:themes_dir]}/#{theme}/javascripts")
+    theme = args.theme || 'classic'
+    if File.directory?("#{configuration[:assets]}.old/javascripts")
+      rm_r "#{configuration[:assets]}.old/javascripts", :secure=>true
+      puts "Removed existing assets.old/javascripts directory"
+    end
+    mkdir "#{configuration[:assets]}.old" 
+    cp_r "#{configuration[:assets]}/javascripts/.", "#{configuration[:assets]}.old/javascripts"
+    puts "Copied styles into #{configuration[:assets]}.old/javascripts"
+    install_javascripts(theme)
+    puts "## Updated Javascripts ##"
+  end
+end
+
 desc "Move source to source.old, install source theme updates, replace source/_includes/navigation.html with source.old's navigation"
-task :update_source, :theme do |t, args|
+task :update_template, :theme do |t, args|
   theme = args.theme || 'classic'
   if File.directory?("#{configuration[:source]}.old")
-    puts "## Removed existing #{configuration[:source]}.old directory"
+    puts "Removed existing #{configuration[:source]}.old directory"
     rm_r "#{configuration[:source]}.old", :secure=>true
   end
   mkdir "#{configuration[:source]}.old"
   cp_r "#{configuration[:source]}/.", "#{configuration[:source]}.old"
-  puts "## Copied #{configuration[:source]} into #{configuration[:source]}.old/"
+  puts "Copied #{configuration[:source]} into #{configuration[:source]}.old/"
   cp_r "#{configuration[:themes_dir]}/"+theme+"/source/.", configuration[:source], :remove_destination=>true
   cp_r "#{configuration[:source]}.old/_includes/custom/.", "#{configuration[:source]}/_includes/custom/", :remove_destination=>true
   mv "#{configuration[:source]}/index.html", "#{configuration[:blog_index_dir]}", :force=>true if configuration[:blog_index_dir] != configuration[:source]
   cp "#{configuration[:source]}.old/index.html", configuration[:source] if configuration[:blog_index_dir] != configuration[:source] && File.exists?("#{configuration[:source]}.old/index.html")
   if File.exists?("#{configuration[:source]}/blog/archives/index.html")
-    puts "## Moving blog/archives to /archives (standard location as of 2.1) ##"
+    puts "moving blog/archives to /archives (standard location as of 2.1) ##"
     file = "#{configuration[:source]}/_includes/custom/navigation.html"
     navigation = IO.read(file)
     navigation = navigation.gsub(/(.*)\/blog(\/archives)(.*$)/m, '\1\2\3')
@@ -366,13 +402,13 @@ task :setup_github_pages, :repo do |t, args|
     system "git remote rename origin octopress"
     if branch == 'master'
       # If this is a user/organization pages repository, add the correct origin remote
-      # and checkout the source branch for committing changes to the blog source.
+      # and checkout the source branch for committing changes to the site's source.
       system "git remote add origin #{repo_url}"
       puts "Added remote #{repo_url} as origin"
       system "git config branch.master.remote origin"
       puts "Set origin as default remote"
       system "git branch -m master source"
-      puts "Master branch renamed to 'source' for committing your blog source files"
+      puts "Master branch renamed to 'source' for committing your site's source files"
     else
       unless !configuration[:destination].match("#{project}").nil?
         Rake::Task[:set_root_dir].invoke(project)

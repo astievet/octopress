@@ -12,9 +12,17 @@ destination:  public          # compiled site directory
 plugins:      plugins
 code_dir:     downloads/code
 category_dir: blog/categories
-markdown:     rdiscount
+markdown:     redcarpet
+redcarpet:
+  extensions: 
+    - no_intra_emphasis
+    - strikethrough
+    - autolink
+    - superscript
+    - smart
 pygments:     false           # Jekyll's default Python Pygments have been replaced by pygments.rb.
-                              # Set to true to use Albino + Python Pygments
+include:
+  - .htaccess
 
 env:            production
 blog_index_dir: source        # directory for your blog's index page (if you put your index in source/blog/index.html, set this to 'source/blog')
