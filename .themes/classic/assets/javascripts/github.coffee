@@ -38,7 +38,7 @@ GitHub =
           # repo order should match list
           repoList[filter.indexOf repo.name] = @addRepo repo, options
         else if !filter
-          repoList.push @addRepo repo, options unless options.skip_forks and repo.fork
+          repoList.push @addRepo repo, options unless options.skipForks and repo.fork
 
     repoList
 
