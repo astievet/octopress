@@ -6,5 +6,6 @@
 twitter_user:
 twitter_tweet_count: 4
 twitter_show_replies: false
+twitter_show_rts: false
 twitter_follow_button: true
 twitter_show_follower_count: false

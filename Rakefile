@@ -40,14 +40,14 @@ def install_stylesheets (configuration, theme)
   mkdir_p "#{configuration[:assets]}/stylesheets"
   if File.directory? "#{configuration[:themes_dir]}/#{theme}/sass"
     cp_r "#{configuration[:themes_dir]}/#{theme}/sass/.", "#{configuration[:assets]}/stylesheets"
-  elsif File.directory? "#{configuration[:themes_dir]}/#{theme}/stylesheets" 
+  elsif File.directory? "#{configuration[:themes_dir]}/#{theme}/assets/stylesheets" 
     cp_r "#{configuration[:themes_dir]}/#{theme}/stylesheets/.", "#{configuration[:assets]}/stylesheets"
   end
 end
 
 def install_javascript (configuration, theme)
   mkdir_p "#{configuration[:assets]}/javascripts"
-  cp_r "#{configuration[:themes_dir]}/#{theme}/javascripts/.", "#{configuration[:assets]}/javascripts", :remove_destination=>true
+  cp_r "#{configuration[:themes_dir]}/#{theme}/assets/javascripts/.", "#{configuration[:assets]}/javascripts", :remove_destination=>true
 end
 
 def install_template (configuration, theme)

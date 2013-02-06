@@ -1,0 +1,9 @@
+---
+# -------------------------------- #
+#  App.net Sidebar Plugin Configs  #
+# -------------------------------- #
+
+adn_user:
+adn_post_count: 4
+adn_show_replies: false
+adn_show_reposts: false

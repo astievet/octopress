@@ -8,3 +8,12 @@ github_user:
 github_repo_count: 0
 github_show_profile_link: true
 github_skip_forks: true
+
+# Add an array of repositories to list them in the GitHub link feed, for example:
+#
+# github_user: imathis
+# github_repos:
+#   - octopress
+#   - hsl-color-picker
+
+github_repos:

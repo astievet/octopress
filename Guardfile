@@ -1,72 +1,60 @@
+$:.unshift File.expand_path(File.dirname(__FILE__), %w{ lib }) # For use/testing when no gem is installed
+
 # A sample Guardfile
 # More info at https://github.com/guard/guard#readme
 require 'stitch-rb'
 require 'uglifier'
 require 'coffee-script'
+require 'digest/md5'
+require 'octopress'
 
-env                = "prod"
-assets_source      = "assets"
-jekyll_source      = "source"
-jekyll_destination = "public"
-stylesheets_dir    = "#{assets_source}/stylesheets"
-javascripts_dir    = "#{assets_source}/javascripts"
-assets_destination = "#{jekyll_source}/assets"
+configuration = Octopress::Configuration.read_configuration
+
+stylesheets_dir    = "#{config[:assets]}/#{configuration[:stylesheets]}"
+javascripts_dir    = "#{config[:assets]}/#{configuration[:javascripts]}"
+assets_destination = "#{configuration[:source]}/assets"
 
 guard :compass do
   watch %r{^#{stylesheets_dir}/(.*)\.s[ac]ss$}
 end
 
-
 guard :shell do
-  watch /^#{jekyll_source}\/.+\.(md|markdown|textile|html|haml|slim|xml)/ do
+  # If a template file changes, trigger a Jekyll build
+  watch /^#{configuration[:source]}\/.+\.(md|markdown|textile|html|haml|slim|xml)/ do
     Thread.new { system 'jekyll' }
   end
-  watch /^#{javascripts_dir}\/.+\.(js|coffee)/ do |change|
-    file = change.first
-    if env == 'development'
-      copy_asset(file)
-    else
-      compile_javascript
-    end
+  watch /^#{javascripts_dir}\/.+\.(js|coffee|mustache|eco|tmpl)/ do |change|
+    compile_javascript
   end
-  watch /^#{jekyll_source}\/.+\.[^(md|markdown|textile|html|haml|slim|xml)]/ do |m|
+  # If a non template file changes, copy it to destination 
+  watch /^#{configuration[:source]}\/.+\.[^(md|markdown|textile|html|haml|slim|xml)]/ do |m|
     file = File.basename(m.first)
-    path = m.first.sub /^#{jekyll_source}/, "#{jekyll_destination}"
+    path = m.first.sub /^#{configuration[:source]}/, "#{configuration[:destination]}"
     FileUtils.mkdir_p path.sub /#{file}/,''
     FileUtils.cp m.first, path
     "\nCopied #{m.first} to #{path}"
   end
 end
 
-def copy_asset(path)
-  output = "#{assets_destination}/javascripts/#{File.basename(path).sub /\.coffee/, ''}"
-  output += '.js' unless File.extname(output) == 'js'
-  if File.extname(path) == 'coffee'
-    File.open(output, 'w') do |f|
-      f.write CoffeeScript.compile File.read(path)
-    end
-  else
-    FileUtils.cp path, "#{assets_destination}/javascripts"
-  end
-  "Copied #{path} to #{output}"
-end
-
 def compile_javascript
-  lib = Dir.glob('lib/**/*.coffee').concat Dir.glob('lib/**/*.js')
-  all = Dir.glob("#{javascripts_dir}/**/*.js").concat Dir.glob("#{javascripts_dir}/**/*.coffee")
-  name = Digest::MD5.hexdigest(all.map! do |path|
+  lib = configuration[:require_js][:dependencies].collect {|item| Dir.glob("#{javascripts_dir}/#{item}") }.flatten.uniq
+  all = configuration[:require_js][:modules].collect {|item| Dir.glob("#{javascripts_dir}/#{item}") }.flatten.uniq
+  name = Digest::MD5.hexdigest(all.concat(lib).uniq.map! do |path|
     "#{File.mtime(path).to_i}"
   end.join)
   all = all.delete_if { |f| lib.include? f }
-  path = "#{assets_destination}/javascripts"
+
+  path = "#{assets_destination}/#{configuration[:javascripts]}"
   file = "#{path}/#{name}.js"
   if File.exist? file
-    ""
+    "File #{file} unchanged."
   else
-    js = Uglifier.new.compile Stitch::Package.new(:paths => all, :dependencies => lib).compile
+
+    js = Stitch::Package.new(:root => javascripts_dir, :dependencies => lib, :files => all).compile
+    js = Uglifier.new.compile js unless Octopress.env == 'development'
     FileUtils.rm_r path, :secure=>true if File.directory? path
     FileUtils.mkdir_p path
     File.open(file, 'w') { |f| f.write js }
-    "Compiled to #{file}"
+    "Compiled to #{file}."
   end
 end

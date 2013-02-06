@@ -6,18 +6,18 @@ config = Octopress::Configuration.read_configuration
 project_type = :stand_alone
 
 # Publishing paths
-compass_http_path = config[:destination].gsub('public', '')
-http_path = compass_http_path
-http_images_path = "#{compass_http_path}/images"
-http_generated_images_path = "#{compass_http_path}/images"
-http_fonts_path = "#{compass_http_path}/fonts"
-css_dir = "#{config[:destination]}/stylesheets"
+compass_http_path           = config[:destination].gsub('public', '')
+http_path                   = compass_http_path
+http_images_path            = "#{http_path}/images"
+http_generated_images_path  = "#{http_path}/images"
+http_fonts_path             = "#{http_path}/fonts"
+css_dir                     = "#{config[:destination]}/stylesheets"
 
 # Local development paths
-sass_dir = "#{config[:assets]}/stylesheets"
-images_dir = "#{config[:source]}/images"
-fonts_dir = "#{config[:source]}/fonts"
-generated_images_dir = "#{config[:source]}/images"
+sass_dir                    = "#{config[:assets]}/#{config[:stylesheets]}"
+images_dir                  = "#{config[:source]}/images"
+fonts_dir                   = "#{config[:source]}/fonts"
+generated_images_dir        = "#{config[:source]}/images"
 
-line_comments = false
-output_style = :compressed
+line_comments               = false
+output_style                = :compressed unless Octopress.env == 'development'
