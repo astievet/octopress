@@ -3,8 +3,15 @@
 #   Classic Theme Configuration   #
 # ------------------------------- #
 
-# Theme asset paths
-theme: classic
+theme:
+  name: classic
+  # Assets directory
+  assets: assets
+  # path to stylesheets directory
+  stylesheets: stylesheets
+  # path to javascripts directory
+  javascripts: javascripts
+
 
 url: http://yoursite.com
 title: My Octopress Blog

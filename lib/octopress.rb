@@ -1,7 +1,8 @@
-$:.unshift File.dirname(__FILE__) # For use/testing when no gem is installed
+$:.unshift File.expand_path(File.dirname(__FILE__)) # For use/testing when no gem is installed
 
 require "octopress/core_ext"
 require "octopress/configuration"
+require "octopress/asset_helpers"
 
 module Octopress
 

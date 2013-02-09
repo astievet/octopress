@@ -9,6 +9,3 @@ facebook_like: false
 # Google+
 google_plus_one: false
 google_plus_one_size: medium
-
-# Twitter
-twitter_tweet_button: true

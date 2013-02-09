@@ -25,7 +25,7 @@ GitHub =
       filter.push i.trim().toLowerCase() for i in options.repos.split ','
 
     for repo in repos
-      unless repoList.length is options.count and options.count > 1
+      unless repoList.length is options.count
         if options.forks or options.watchers
           repo.meta  = ''
           if options.watchers

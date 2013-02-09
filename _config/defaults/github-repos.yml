@@ -15,5 +15,7 @@ github_skip_forks: true
 # github_repos:
 #   - octopress
 #   - hsl-color-picker
+#
+# Manually adding repositories causes count to be ignored.
 
 github_repos:
